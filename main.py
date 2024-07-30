@@ -55,35 +55,28 @@ newly_added_ideas = []
 # If idea don't exist - saves it to db
 # If an idea already exists - updates like count for this idea in db
 try:
-    connection = psycopg2.connect(**DATABASE_CONFIG)
-    cursor = connection.cursor()
+    with psycopg2.connect(**DATABASE_CONFIG) as connection:
+        with connection.cursor() as cursor:
 
-    # selects all links that exist in db
-    cursor.execute("SELECT link FROM ideas")
-    saved_links = [data_set[0] for data_set in cursor.fetchall()]
+            # selects all links that exist in db
+            cursor.execute("SELECT link FROM ideas")
+            saved_links = [data_set[0] for data_set in cursor.fetchall()]
 
-    for idea in sorted_ideas:
+            for idea in sorted_ideas:
 
-        if idea['link'] not in saved_links:
-            insert_query = "INSERT INTO ideas (link,title,likes,added_date,fandoms,genres) VALUES (%s,%s,%s,%s,%s,%s)"
-            cursor.execute(
-                insert_query,
-                (idea['link'], idea['title'], idea['likes'], DATE, idea['fandoms'], idea['genre'])
-            )
-            newly_added_ideas.append(idea)
+                if idea['link'] not in saved_links:
+                    cursor.execute(
+                        "INSERT INTO ideas (link,title,likes,added_date,fandoms,genres) VALUES (%s,%s,%s,%s,%s,%s)",
+                        (idea['link'], idea['title'], idea['likes'], DATE, idea['fandoms'], idea['genre'])
+                    )
+                    newly_added_ideas.append(idea)
 
-        else:
-            update_query = "UPDATE ideas SET likes = %s WHERE link = %s AND likes != %s"
-            cursor.execute(update_query, (idea['likes'], idea['link'], idea['likes']))
+                else:
+                    update_query = "UPDATE ideas SET likes = %s WHERE link = %s AND likes != %s"
+                    cursor.execute(update_query, (idea['likes'], idea['link'], idea['likes']))
 
-    connection.commit()
+            connection.commit()
 
-    # cursor.execute("SELECT * from ideas")
-    # record = cursor.fetchall()
-    # print("Результат", record)
 except (Exception, Error) as error:
     print("Ошибка при работе с PostgreSQL: ", error)
-finally:
-    if connection:
-        cursor.close()
-        connection.close()
+
