@@ -112,5 +112,4 @@ def send_new_ideas_email(new_ideas: List[Dict]):
         s.sendmail(SENDER_EMAIL, RECIEVERS_EMAIL_LIST, msg.as_string())
 
 
-if DATE == 6:
-    send_new_ideas_email(newly_added_ideas)
+send_new_ideas_email(newly_added_ideas)
