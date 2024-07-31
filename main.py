@@ -1,15 +1,22 @@
 import datetime
+import smtplib
 import time
+from email.message import EmailMessage
+from typing import Dict, List
 
-from bs4 import BeautifulSoup
 import psycopg2
+from bs4 import BeautifulSoup
 from psycopg2 import Error
 from selenium import webdriver as wd
 from selenium.webdriver.common.by import By
 
-from config import MY_FANDOMS, DATABASE_CONFIG
+from config import (DATABASE_CONFIG, MY_FANDOMS,
+                    RECIEVERS_EMAIL_LIST, SENDER_EMAIL,
+                    SENDER_EMAIL_PASSWORD)
 
 FICBOOK_URL = 'https://ficbook.net/requests-346578/popular'
+SMTP_HOST = 'smtp.gmail.com'
+SMTP_PORT = 587
 DATE = datetime.date.today()
 
 # Opens ficbook page 'popular ideas' and copies html body(simple request method have not worked)
@@ -80,3 +87,30 @@ try:
 except (Exception, Error) as error:
     print("Ошибка при работе с PostgreSQL: ", error)
 
+
+def send_new_ideas_email(new_ideas: List[Dict]):
+    """Sends an email with a list of newly added ideas."""
+    if not new_ideas:
+        return  # No new ideas to send
+
+    msg = EmailMessage()
+    msg['Subject'] = 'New Ficbook Ideas!'
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = ', '.join(RECIEVERS_EMAIL_LIST)
+
+    # Format email content
+    mail_content = "Here are the newly added Ficbook ideas:\n\n"
+    for idea in new_ideas:
+        mail_content += f"- **{idea['title']}** ({', '.join(idea['fandoms'])})\n"
+        mail_content += f" - Link: {idea['link']}\n"
+        mail_content += f" - Likes: {idea['likes']}\n\n"
+    msg.set_content(mail_content)
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+        s.starttls()
+        s.login(SENDER_EMAIL, SENDER_EMAIL_PASSWORD)
+        s.sendmail(SENDER_EMAIL, RECIEVERS_EMAIL_LIST, msg.as_string())
+
+
+if DATE == 6:
+    send_new_ideas_email(newly_added_ideas)
