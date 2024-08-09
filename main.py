@@ -19,7 +19,7 @@ SMTP_HOST = 'smtp.gmail.com'
 SMTP_PORT = 587
 DATE = datetime.date.today()
 
-# Opens ficbook page 'popular ideas' and copies html body(simple request method have not worked)
+
 def get_ficbook_html(url: str) -> str:
     """ Fetches html content of the Ficbook page 'популярные заявки' """
     options = wd.ChromeOptions()
@@ -31,6 +31,7 @@ def get_ficbook_html(url: str) -> str:
     driver.quit()
     return html
 
+
 def parse_ideas(html: str) -> List[Dict]:
     """Parses ideas from HTML content"""
 
@@ -39,8 +40,6 @@ def parse_ideas(html: str) -> List[Dict]:
 
     sorted_ideas = []
 
-    # Sorts ideas by needed genres and fandoms
-    # Parses data from divs and structures it in dictionaries
     for div in divs_ideas:
 
         if div.select('.ic_gen') or div.select('.ic_het'):
@@ -61,30 +60,26 @@ def parse_ideas(html: str) -> List[Dict]:
                                 }
                     sorted_ideas.append(div_dict)
                     break
+    return sorted_ideas
+
 
 def update_database(ideas: List[Dict]) -> List[Dict]:
     """ Updates the database with new ideas and returns newly added ideas"""
     newly_added_ideas = []
-    # Connects with a postgres database
-    # If idea don't exist - saves it to db
-    # If an idea already exists - updates like count for this idea in db
     try:
         with psycopg2.connect(**DATABASE_CONFIG) as connection:
             with connection.cursor() as cursor:
 
-                # selects all links that exist in db
                 cursor.execute("SELECT link FROM ideas")
                 saved_links = [data_set[0] for data_set in cursor.fetchall()]
 
-                for idea in sorted_ideas:
-
+                for idea in ideas:
                     if idea['link'] not in saved_links:
                         cursor.execute(
                             "INSERT INTO ideas (link,title,likes,added_date,fandoms,genres) VALUES (%s,%s,%s,%s,%s,%s)",
                             (idea['link'], idea['title'], idea['likes'], DATE, idea['fandoms'], idea['genre'])
                         )
                         newly_added_ideas.append(idea)
-
                     else:
                         update_query = "UPDATE ideas SET likes = %s WHERE link = %s AND likes != %s"
                         cursor.execute(update_query, (idea['likes'], idea['link'], idea['likes']))
@@ -93,7 +88,9 @@ def update_database(ideas: List[Dict]) -> List[Dict]:
 
     except (Exception, Error) as error:
         print("Ошибка при работе с PostgreSQL: ", error)
+
     return newly_added_ideas
+
 
 def send_new_ideas_email(new_ideas: List[Dict]):
     """ Sends an email with a list of newly added ideas."""
@@ -118,11 +115,13 @@ def send_new_ideas_email(new_ideas: List[Dict]):
         s.login(SENDER_EMAIL, SENDER_EMAIL_PASSWORD)
         s.sendmail(SENDER_EMAIL, RECIEVERS_EMAIL_LIST, msg.as_string())
 
+
 def main():
     html = get_ficbook_html(FICBOOK_URL)
     ideas = parse_ideas(html)
     newly_added_ideas = update_database(ideas)
     send_new_ideas_email(newly_added_ideas)
 
-if name == '__main__':
+
+if __name__ == '__main__':
     main()
